@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Sukoku</title>
+
+</head>
+<script
+	src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+<script language="javascript" type="text/javascript">
+  $(document).ready(function() {
+    var base = 9;
+
+    setupGrid(base);
+    setupCells(base);
+
+    //	Handle click in cell
+    //	Adds 'focus' class to cell
+    $('td.cell').on('click', function() {
+      $('td.cell').removeClass('focus');
+      $(this).addClass('focus');
+    });
+
+    //	Handle "Load Puzzle" button
+    $("input[type='button']").on('click', function(event) {
+      clearCells();
+      $.get("puzzle_values.txt", function(data) {
+        var lines = data.split("\n");
+        lines.forEach(function(line, index) {
+          items = line.split("\t");
+          setCellFormat($('td.cell#' + items[0]), items[1].length);
+          $('td.cell#' + items[0]).text(items[1]);
+        });
+      });
+    });
+
+    //	Handle "Solve" button click
+    $("input[type='submit']").on('click', function(event) {
+      event.stopPropagation();
+      var values =
+        [];
+      var text;
+      $('td.cell').each(function() {
+        text = $(this).text();
+        if (text !== '' && text.length === 1) {
+          var obj =
+            { id : $(this).attr('id'), value : text
+            };
+          values.push(obj);
+        }
+      });
+      sendValues(JSON.stringify(values));
+    });
+  })
+
+  .keyup(function(e) {
+    var code = e.keyCode || e.which;
+    var ch = String.fromCharCode(code);
+    if (validChar(ch) === true) {
+      setCellFormat($('td.focus'), 1);
+      $('td.focus').text(ch);
+    }
+  });
+
+  function sendValues(json_values) {
+    $.post("sudoku.php?q=" + json_values, function(data) {
+      var result = $.parseJSON(data);
+      $.each(result, function(cell, value) {
+        setCellFormat($('td#' + cell), value.length);
+        $('td#' + cell).text(value);
+      })
+    });
+  }
+
+  function setCellFormat(selector, count) {
+    selector.removeClass('possible').removeClass('locked');
+    if (count > 1) {
+      selector.addClass('possible');
+    }
+    else {
+      selector.addClass('locked');
+    }
+  }
+
+  function setupGrid(base) {
+    //	GRID
+    var grid = $('<table>').attr('id', 'grid').appendTo('body');
+    //	SQUARES 3 X 3
+    for (var idx = 0; idx < base; idx++) {
+      if (idx % Math.sqrt(base) === 0) {
+        var grid_row = $('<tr>').appendTo(grid);
+      }
+      var table = $('<table>').attr('id', 'square' + idx.toString()).addClass(
+          'square');
+      var square = $('<td>').append(table).appendTo(grid_row);
+    }
+  }
+
+  function setupCells(base) {
+    var alpha = 65; // ASCII 'A'
+    var num = 1;
+
+    //	CELLS 9 x 9 in a 3 x 3 grid
+    var square_base = 0;
+    var square_idx = 0;
+    for (var num_idx = 0; num_idx < base; num_idx++) {
+      num = num_idx + 1;
+      if (num_idx !== 0 && num_idx % Math.sqrt(base) === 0) {
+        square_base += Math.sqrt(base);
+      }
+      square_idx = square_base;
+      for (var alpha_idx = 0; alpha_idx < base; alpha_idx++) {
+        var letter = alpha + alpha_idx;
+        var cell_id = String.fromCharCode(letter) + num.toString();
+        if (alpha_idx === 0) {
+          var square = $('table#square' + square_idx.toString());
+          var row = $('<tr>').appendTo(square);
+        }
+        else {
+          if (alpha_idx % Math.sqrt(base) === 0) {
+            square_idx++;
+            square = $('table#square' + square_idx.toString());
+            row = $('<tr>').appendTo(square);
+          }
+        }
+        var cell = $('<td>').attr('id', cell_id).addClass('cell').appendTo(row);
+      }
+    }
+  }
+
+  function validChar(ch) {
+    var num = parseInt(ch);
+    if (num >= 1 && num <= 9) {
+      return true;
+    }
+    return false;
+  }
+  
+  function clearCells() {
+    $('td.cell').text('');
+  }
+</script>
+
+<style type="text/css">
+table#grid {
+	border: solid 3px red;
+}
+
+.square {
+	border: solid 2px blue;
+}
+
+td.cell {
+	border: solid 1px black;
+	height: 50px;
+	width: 50px;
+	text-align: center;
+	font-family: Helvetica;
+}
+
+td.possible {
+	font-size: 12px;
+}
+
+td.locked {
+	font-size: 28px;
+}
+
+td.focus {
+	background: lightblue;
+}
+
+input[type=submit] {
+	font-size: 14px;
+	margin-bottom: 3px;
+}
+</style>
+<body>
+	<input type='submit' value='Solve' />
+	<input type='button' value='Load Puzzle' />
+</body>
+</html>
